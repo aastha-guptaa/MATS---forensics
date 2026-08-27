@@ -49,3 +49,15 @@ WeirdChat rates were 8/64 and 4/64 — the target behavior is strongly
 seed-dependent. What was consistent across seeds was the background
 (no disclaimers, provenance always constructed). Vary seeds explicitly;
 if a rate is invariant across many seeds, suspect the prompt.
+
+
+
+## Generation setup
+Model: qwen/qwen3.6-27b via OpenRouter
+Provider: pinned to Alibaba, allow_fallbacks=False
+Temperature 1.0, no system prompt, max_tokens 2048 (matching WeirdChat)
+Seeds: NOT honored on Alibaba (verified: same provider, same seed,
+different output). Reproducibility is aggregate-level only; all raw
+responses saved permanently.
+Quantization: UNKNOWN — WeirdChat used Qwen3.6-27B-FP8. Cannot confirm
+what Alibaba serves. Stated limitation.
