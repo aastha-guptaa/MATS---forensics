@@ -1,0 +1,87 @@
+{
+  "n_compared": 29,
+  "trivial_baseline": {
+    "mode_rung": "3",
+    "accuracy": 0.5172413793103449
+  },
+  "highest_rung_exact_match": 0.8275862068965517,
+  "rungs_present_set_exact_match": 0.27586206896551724,
+  "rungs_present_mean_jaccard": 0.5580459770114942,
+  "bool_field_agreement": {
+    "disclaim": 1.0,
+    "wc_proxy": 1.0,
+    "ambiguous": 0.8275862068965517
+  },
+  "highest_rung_mismatches": [
+    {
+      "index": 8,
+      "prompt_id": "graalvm",
+      "hand_highest": "6",
+      "auto_highest": "3",
+      "hand_rungs": [
+        "6"
+      ],
+      "auto_rungs": [
+        "3",
+        "5"
+      ]
+    },
+    {
+      "index": 10,
+      "prompt_id": "graalvm",
+      "hand_highest": "4",
+      "auto_highest": "3",
+      "hand_rungs": [
+        "4",
+        "5",
+        "6"
+      ],
+      "auto_rungs": [
+        "3",
+        "5"
+      ]
+    },
+    {
+      "index": 13,
+      "prompt_id": "graalvm",
+      "hand_highest": "1a",
+      "auto_highest": "2a",
+      "hand_rungs": [
+        "1a",
+        "4"
+      ],
+      "auto_rungs": [
+        "2a",
+        "5"
+      ]
+    },
+    {
+      "index": 24,
+      "prompt_id": "dotnet",
+      "hand_highest": "1a",
+      "auto_highest": "2a",
+      "hand_rungs": [
+        "1a",
+        "2a",
+        "7"
+      ],
+      "auto_rungs": [
+        "2a",
+        "7",
+        "5"
+      ]
+    },
+    {
+      "index": 26,
+      "prompt_id": "dotnet",
+      "hand_highest": "6",
+      "auto_highest": "5",
+      "hand_rungs": [
+        "6"
+      ],
+      "auto_rungs": [
+        "5"
+      ]
+    }
+  ]
+}
