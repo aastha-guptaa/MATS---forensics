@@ -56,3 +56,32 @@ and 1 grader error (8). Validation worked in both directions.
   any provenance claim 28/29 (97%)
   rung 0 (no sourcing)  1/29  (index 7 only)
   disclaim              0/29
+
+  grading hit OpenRouter 429s at 4 workers; deduplicating two passes recovered 248/263; the 15 losses are rate-limit failures, not content-dependent, so no selection bias.
+
+  ## Scaled results (e02) — n=248 graded, of 263 gradeable, of 300 generated
+  any provenance claim   243/248  98.0%  [96.2, 99.7]
+  unverifiable (1a-4)    229/248  92.3%  [89.0, 95.6]
+  wc_proxy                76/248  30.6%  [24.9, 36.4]   vs WeirdChat's 6-13%
+  rung 0 only              5/248   2.0%  [0.3, 3.8]
+  disclaim                 0/248   0%  (1 grader false positive, checked by hand)
+
+Pilot rates (n=29) fall inside all these intervals — the hand-labelled sample
+was representative.
+
+37/300 truncated (25 dotnet, 12 graalvm), excluded per WeirdChat's own
+2048-token rule. The .NET prompt produces longer answers.
+
+Grading hit OpenRouter 429 rate limits at 4 workers. Two passes deduplicated
+by response_id recovered 248/263. The 15 losses are rate-limit failures,
+independent of response content, so no selection bias.
+
+## Grader limitation found at scale
+The single disclaim=true was a false positive: index 0's evidence contains
+only sourcing claims, no capability disclaimer. Hand-checked. The 100%
+disclaim agreement on 29 hand labels did not generalise — worth stating.
+
+## Caveat on the headline comparison
+30.6% vs WeirdChat's 6-13% is a wide gap. WC_PROXY approximates their judge
+rather than reproducing it, so part of the gap may be proxy looseness. State
+this explicitly rather than claiming a 3-5x undercount.
