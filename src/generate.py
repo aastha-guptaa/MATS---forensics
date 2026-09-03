@@ -1,28 +1,32 @@
 #!/usr/bin/env python3
-"""Generate raw completions from qwen/qwen3.6-27b via OpenRouter for each prompt in data/prompts.json."""
+"""Generate raw completions via OpenRouter for each prompt in data/prompts.json.
+
+Defaults to qwen/qwen3.6-27b on Alibaba; override with --model / --provider."""
 import argparse
 import hashlib
 import json
 import os
+import threading
 import time
 from datetime import datetime, timezone
 
 import requests
 
 API_URL = "https://openrouter.ai/api/v1/chat/completions"
-MODEL = "qwen/qwen3.6-27b"
+DEFAULT_MODEL = "qwen/qwen3.6-27b"
+DEFAULT_PROVIDER = "Alibaba"
 MAX_ATTEMPTS = 3
 RETRY_BACKOFF_S = 5
 
 
-def call(prompt, temperature, max_tokens):
+def call(prompt, temperature, max_tokens, model, provider):
     body = {
-        "model": MODEL,
+        "model": model,
         "messages": [{"role": "user", "content": prompt}],
         "temperature": temperature,
         "max_tokens": max_tokens,
         "provider": {
-            "order": ["Alibaba"],
+            "order": [provider],
             "allow_fallbacks": False,
         },
         "reasoning": {"effort": "none"},
@@ -37,11 +41,11 @@ def call(prompt, temperature, max_tokens):
     return r.json()
 
 
-def call_with_retries(prompt, temperature, max_tokens):
+def call_with_retries(prompt, temperature, max_tokens, model, provider):
     last_error = None
     for attempt in range(1, MAX_ATTEMPTS + 1):
         try:
-            return call(prompt, temperature, max_tokens), None
+            return call(prompt, temperature, max_tokens, model, provider), None
         except Exception as e:
             last_error = e
             if attempt < MAX_ATTEMPTS:
@@ -99,6 +103,9 @@ def main():
     parser.add_argument("--n", type=int, default=15, help="requests per prompt")
     parser.add_argument("--temperature", type=float, default=1.0)
     parser.add_argument("--max-tokens", type=int, default=2048)
+    parser.add_argument("--model", default=DEFAULT_MODEL)
+    parser.add_argument("--provider", default=DEFAULT_PROVIDER, help="OpenRouter provider slug, e.g. Alibaba")
+    parser.add_argument("--workers", type=int, default=5, help="concurrent request workers")
     args = parser.parse_args()
 
     if "OPENROUTER_API_KEY" not in os.environ:
@@ -107,36 +114,53 @@ def main():
     with open(args.prompts) as f:
         prompts = json.load(f)
 
-    os.makedirs(os.path.dirname(args.out), exist_ok=True)
+    os.makedirs(os.path.dirname(args.out) or ".", exist_ok=True)
 
     if os.path.exists(args.out):
         with open(args.out) as f:
             existing = sum(1 for _ in f)
         print(f"WARNING: {args.out} already has {existing} records; appending.")
 
-    total = len(prompts) * args.n
+    work_items = []
+    for p in prompts:
+        prompt_id = p["id"]
+        text = p["prompt"]
+        prompt_hash = hashlib.sha256(text.encode("utf-8")).hexdigest()
+        for i in range(args.n):
+            work_items.append((prompt_id, prompt_hash, text, i))
+
+    total = len(work_items)
     done = 0
     failed = 0
+    write_lock = threading.Lock()
 
-    with open(args.out, "a") as out_f:
-        for p in prompts:
-            prompt_id = p["id"]
-            text = p["prompt"]
-            prompt_hash = hashlib.sha256(text.encode("utf-8")).hexdigest()
-            for i in range(args.n):
-                response, error = call_with_retries(text, args.temperature, args.max_tokens)
-                if error is not None:
-                    record = make_error_record(prompt_id, prompt_hash, i, error)
-                    failed += 1
-                else:
-                    record = make_record(prompt_id, prompt_hash, i, response)
+    def process_one(item):
+        prompt_id, prompt_hash, text, i = item
+        response, error = call_with_retries(text, args.temperature, args.max_tokens, args.model, args.provider)
+        if error is not None:
+            record = make_error_record(prompt_id, prompt_hash, i, error)
+        else:
+            record = make_record(prompt_id, prompt_hash, i, response)
+        return record
+
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+
+    with open(args.out, "a") as out_f, ThreadPoolExecutor(max_workers=args.workers) as pool:
+        futures = [pool.submit(process_one, item) for item in work_items]
+        for fut in as_completed(futures):
+            record = fut.result()
+            with write_lock:
                 out_f.write(json.dumps(record) + "\n")
                 out_f.flush()
-                done += 1
-                status = f"ERROR: {record['error']}" if record["error"] else "ok"
-                print(f"[{done}/{total}] prompt={prompt_id} i={i} {status}")
+            done += 1
+            if record.get("error"):
+                failed += 1
+                print(f"[{done}/{total}] prompt={record['prompt_id']} i={record['request_index']} ERROR: {record['error']}")
+            else:
+                print(f"[{done}/{total}] prompt={record['prompt_id']} i={record['request_index']} ok")
 
     print(f"done. {done} requests, {failed} failed. wrote to {args.out}")
+
 
 
 if __name__ == "__main__":
